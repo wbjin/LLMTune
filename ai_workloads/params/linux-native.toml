@@ -1,0 +1,117 @@
+# Platform: native Linux. Values are for the LAPTOP (ThinkPad X390 Yoga, i7-8565U, UHD 620).
+# Loaded together with params/llama.toml. For native Linux on the desktop (Ryzen + RX 6750 XT),
+# copy this file and change: threads/cpu_mask, device (Vulkan0), no_turbo -> cpufreq/boost,
+# amd-pstate EPP values, GPU sysfs -> amdgpu power_dpm_force_performance_level / pp_dpm_sclk.
+
+[platform]
+llama = "~/.local/bin/llama"        # unified binary: `llama bench`
+model = ""                          # empty = first *.gguf in the HuggingFace cache
+gpu = true
+
+# ------------------------------------------------- overrides of llama.toml ----
+[override.threads]
+max = 8
+default = 4
+note = "CPU worker threads. 4 physical cores / 8 HW threads (SMT siblings n, n+4)."
+
+[override.cpu_mask]
+values = ["0x0", "0x0F", "0xFF"]
+note = "0x0 = none, 0x0F = one HW thread per physical core, 0xFF = all."
+
+[override.device]
+values = ["auto", "none", "Vulkan0"]
+
+# ----------------------------------------------------------------- sysfs ----
+# Applied in registry order (governor before EPP: intel_pstate rejects EPP
+# writes other than 'performance' while the governor is 'performance').
+
+[[knob]]
+name = "cpu_governor"
+layer = "sysfs"
+key = "/sys/devices/system/cpu/cpu*/cpufreq/scaling_governor"
+type = "enum"
+values = ["powersave", "performance"]
+default = "powersave"
+root = true
+
+[[knob]]
+name = "cpu_epp"
+layer = "sysfs"
+key = "/sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference"
+type = "enum"
+values = ["default", "performance", "balance_performance", "balance_power", "power"]
+default = "balance_performance"
+root = true
+
+[[knob]]
+name = "no_turbo"
+layer = "sysfs"
+key = "/sys/devices/system/cpu/intel_pstate/no_turbo"
+type = "bool"
+default = false
+root = true
+
+[[knob]]
+name = "cpu_max_freq_khz"
+layer = "sysfs"
+key = "/sys/devices/system/cpu/cpu*/cpufreq/scaling_max_freq"
+type = "int"
+min = 400000
+max = 4600000
+default = 4600000
+root = true
+enabled = false
+note = "Frequency cap. Useful for characterising thermal/power limits."
+
+[[knob]]
+name = "smt"
+layer = "sysfs"
+key = "/sys/devices/system/cpu/smt/control"
+type = "enum"
+values = ["on", "off"]
+default = "on"
+root = true
+note = "off takes the SMT siblings offline: threads > cores and masks touching them become invalid."
+
+[[knob]]
+name = "thp_enabled"
+layer = "sysfs"
+key = "/sys/kernel/mm/transparent_hugepage/enabled"
+type = "enum"
+values = ["always", "madvise", "never"]
+default = "madvise"
+root = true
+
+[[knob]]
+name = "thp_defrag"
+layer = "sysfs"
+key = "/sys/kernel/mm/transparent_hugepage/defrag"
+type = "enum"
+values = ["always", "defer", "defer+madvise", "madvise", "never"]
+default = "madvise"
+root = true
+
+[[knob]]
+name = "gpu_min_freq_mhz"
+layer = "sysfs"
+key = "/sys/class/drm/card1/gt_min_freq_mhz"
+type = "int"
+min = 300
+max = 1150
+default = 300
+root = true
+enabled = false
+gpu = true
+note = "Intel iGPU floor (RPn=300, RP0=1150)."
+
+[[knob]]
+name = "gpu_max_freq_mhz"
+layer = "sysfs"
+key = "/sys/class/drm/card1/gt_max_freq_mhz"
+type = "int"
+min = 300
+max = 1150
+default = 1150
+root = true
+enabled = false
+gpu = true

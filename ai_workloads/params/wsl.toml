@@ -1,0 +1,58 @@
+# Platform: WSL2 on the DESKTOP (Ryzen 9 5900XT, 16C/32T), CPU only.
+# WSL has no GPU device for llama.cpp and no cpufreq/boost/EPP files (probe 2026-10-29).
+# Loaded together with params/llama.toml.
+
+[platform]
+llama = "~/llama-b11429/ubuntu-x64/llama-b11429/llama"   # unified binary: `llama bench`
+model = "~/models/Qwen3.5-0.8B-Q8_0.gguf"
+gpu = false
+# The Windows power plan still sets the CPU frequency policy under WSL, so the
+# powercfg knobs from windows.toml are available here too (effect on WSL unmeasured).
+knobs_from = ["windows"]
+
+# ------------------------------------------------- overrides of llama.toml ----
+[override.threads]
+max = 32
+default = 16
+note = "CPU worker threads. 16 cores / 32 HW threads (SMT siblings 2n, 2n+1)."
+
+[override.cpu_mask]
+values = ["0x0", "0x5555", "0xFFFF", "0x55555555", "0xFFFFFFFF"]
+note = "0x0 = none; 0x5555 / 0xFFFF = CPUs of cores 0-7 (assumed first CCD), one / both HW threads; 0x55555555 = one HW thread per core; 0xFFFFFFFF = all."
+
+[override.load_mode]
+values = ["auto", "none", "mmap", "dio"]
+note = "mlock variants left out: ulimit -l is 64 MB here, the model is ~800 MB."
+
+# ----------------------------------------------------------------- sysfs ----
+# Root writes via `sudo -n tee` (needs passwordless sudo for tee).
+# Same-value writes accepted as root (probe 2026-10-29); real changes untested.
+
+[[knob]]
+name = "thp_enabled"
+layer = "sysfs"
+key = "/sys/kernel/mm/transparent_hugepage/enabled"
+type = "enum"
+values = ["always", "madvise", "never"]
+default = "madvise"
+root = true
+
+[[knob]]
+name = "thp_defrag"
+layer = "sysfs"
+key = "/sys/kernel/mm/transparent_hugepage/defrag"
+type = "enum"
+values = ["always", "defer", "defer+madvise", "madvise", "never"]
+default = "madvise"
+root = true
+
+[[knob]]
+name = "smt"
+layer = "sysfs"
+key = "/sys/devices/system/cpu/smt/control"
+type = "enum"
+values = ["on", "off"]
+default = "on"
+root = true
+enabled = false
+note = "Writable, but whether WSL really takes SMT siblings offline is untested."

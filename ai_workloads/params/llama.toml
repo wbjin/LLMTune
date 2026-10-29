@@ -1,0 +1,364 @@
+# Workload knobs: llama.cpp itself (llama bench flags + GGML_* env vars).
+# Loaded on EVERY platform, together with params/<platform>.toml.
+#
+# Layers:
+#   flag  -> passed to `llama bench` on the command line      (key = flag)
+#   env   -> exported into the benchmark's environment        (key = env var)
+#
+# Types map 1:1 onto OpenTuner parameters:
+#   int -> IntegerParameter, pow2 -> PowerOfTwoParameter,
+#   enum -> EnumParameter,   bool -> BooleanParameter
+#
+# `default`  = value llama.cpp uses when we pass nothing. Baseline runs pass NOTHING.
+# `enabled`  = included in the default search space (a space file can override this).
+# `quality`  = changes model output, not just speed.
+# `root`     = needs root to apply.
+# `gpu`      = only meaningful with a GPU backend; disabled on platforms with gpu = false.
+#
+# Host-specific ranges (threads, cpu_mask, device) are placeholders here: each
+# platform file sets them in its [override.<knob>] tables.
+
+# ------------------------------------------------------------------ flag ----
+[[knob]]
+name = "threads"
+layer = "flag"
+key = "-t"
+type = "int"
+min = 1
+max = 8
+default = 4
+note = "CPU worker threads. Range/default set per platform."
+
+[[knob]]
+name = "cpu_mask"
+layer = "flag"
+key = "-C"
+type = "enum"
+values = ["0x0"]
+default = "0x0"
+note = "Affinity mask (hex, bit n = logical CPU n). 0x0 = none. Values set per platform."
+
+[[knob]]
+name = "cpu_strict"
+layer = "flag"
+key = "--cpu-strict"
+type = "bool"
+default = false
+note = "Pin threads strictly to the mask."
+
+[[knob]]
+name = "poll"
+layer = "flag"
+key = "--poll"
+type = "int"
+min = 0
+max = 100
+default = 50
+note = "Busy-wait level before threads sleep (0 = no polling)."
+
+[[knob]]
+name = "prio"
+layer = "flag"
+key = "--prio"
+type = "enum"
+values = ["0", "1", "2", "3"]
+default = "0"
+root = true
+enabled = false
+note = "Process/thread priority. Linux: >0 needs CAP_SYS_NICE. Windows: up to High without admin."
+
+[[knob]]
+name = "batch"
+layer = "flag"
+key = "-b"
+type = "pow2"
+min = 32
+max = 4096
+default = 2048
+note = "Logical batch size. Constraint: ubatch <= batch."
+
+[[knob]]
+name = "ubatch"
+layer = "flag"
+key = "-ub"
+type = "pow2"
+min = 32
+max = 2048
+default = 512
+note = "Physical (micro) batch size. Mostly affects prompt processing."
+
+[[knob]]
+name = "n_gpu_layers"
+layer = "flag"
+key = "-ngl"
+type = "int"
+min = 0
+max = 99
+default = 99
+gpu = true
+note = "Layers offloaded to GPU. >= model layer count means all (bench default -1 = all)."
+
+[[knob]]
+name = "device"
+layer = "flag"
+key = "-dev"
+type = "enum"
+values = ["auto", "none"]
+default = "auto"
+gpu = true
+note = "Backend device. none = CPU only. GPU device names set per platform."
+
+[[knob]]
+name = "flash_attn"
+layer = "flag"
+key = "-fa"
+type = "enum"
+values = ["auto", "on", "off"]
+default = "auto"
+note = "Flash attention. Required for quantized V cache."
+
+[[knob]]
+name = "no_kv_offload"
+layer = "flag"
+key = "-nkvo"
+type = "bool"
+default = false
+gpu = true
+note = "Keep KV cache on host instead of GPU."
+
+[[knob]]
+name = "no_op_offload"
+layer = "flag"
+key = "-nopo"
+type = "bool"
+default = false
+gpu = true
+note = "Disable offloading host-resident tensor ops to the GPU."
+
+[[knob]]
+name = "no_host"
+layer = "flag"
+key = "--no-host"
+type = "bool"
+default = false
+gpu = true
+note = "Bypass host buffer types."
+
+[[knob]]
+name = "repack"
+layer = "flag"
+key = "--repack"
+type = "bool"
+default = true
+note = "Repack CPU weights into SIMD-friendly layouts."
+
+[[knob]]
+name = "load_mode"
+layer = "flag"
+key = "-lm"
+type = "enum"
+values = ["auto", "none", "mmap", "mlock", "mmap+mlock", "dio"]
+default = "auto"
+note = "How weights are loaded. mlock needs ulimit -l >= model size."
+
+[[knob]]
+name = "lazy_mode"
+layer = "flag"
+key = "-lzm"
+type = "enum"
+values = ["auto", "on", "off"]
+default = "auto"
+enabled = false
+note = "Lazy weight loading. Mostly affects load time, not steady state."
+
+[[knob]]
+name = "cache_type_k"
+layer = "flag"
+key = "-ctk"
+type = "enum"
+values = ["f16", "bf16", "q8_0", "q5_1", "q5_0", "q4_1", "q4_0", "iq4_nl"]
+default = "f16"
+quality = true
+enabled = false
+note = "KV cache K dtype."
+
+[[knob]]
+name = "cache_type_v"
+layer = "flag"
+key = "-ctv"
+type = "enum"
+values = ["f16", "bf16", "q8_0", "q5_1", "q5_0", "q4_1", "q4_0", "iq4_nl"]
+default = "f16"
+quality = true
+enabled = false
+note = "KV cache V dtype. Quantized V requires flash_attn != off."
+
+# ------------------------------------------------------------------- env ----
+# Names extracted from the llama binaries (b11429); semantics inferred from the name.
+# Verify against ggml/src/ggml-vulkan before trusting them.
+
+[[knob]]
+name = "cpu_tiled_mm"
+layer = "env"
+key = "GGML_CPU_TILED_MM"
+type = "bool"
+default = false
+
+[[knob]]
+name = "cpu_disable_fusion"
+layer = "env"
+key = "GGML_CPU_DISABLE_FUSION"
+type = "bool"
+default = false
+
+[[knob]]
+name = "op_offload_min_batch"
+layer = "env"
+key = "GGML_OP_OFFLOAD_MIN_BATCH"
+type = "int"
+min = 1
+max = 1024
+enabled = false
+gpu = true
+note = "Min batch before host-resident ops are offloaded. Default unverified."
+
+[[knob]]
+name = "vk_prefer_host_memory"
+layer = "env"
+key = "GGML_VK_PREFER_HOST_MEMORY"
+type = "bool"
+default = false
+gpu = true
+note = "Prefer host memory for buffers. Interesting on UMA iGPUs."
+
+[[knob]]
+name = "vk_disable_host_visible_vidmem"
+layer = "env"
+key = "GGML_VK_DISABLE_HOST_VISIBLE_VIDMEM"
+type = "bool"
+default = false
+gpu = true
+
+[[knob]]
+name = "vk_disable_f16"
+layer = "env"
+key = "GGML_VK_DISABLE_F16"
+type = "bool"
+default = false
+gpu = true
+
+[[knob]]
+name = "vk_disable_fusion"
+layer = "env"
+key = "GGML_VK_DISABLE_FUSION"
+type = "bool"
+default = false
+gpu = true
+
+[[knob]]
+name = "vk_disable_graph_optimize"
+layer = "env"
+key = "GGML_VK_DISABLE_GRAPH_OPTIMIZE"
+type = "bool"
+default = false
+gpu = true
+
+[[knob]]
+name = "vk_disable_async"
+layer = "env"
+key = "GGML_VK_DISABLE_ASYNC"
+type = "bool"
+default = false
+gpu = true
+
+[[knob]]
+name = "vk_disable_mmvq"
+layer = "env"
+key = "GGML_VK_DISABLE_MMVQ"
+type = "bool"
+default = false
+gpu = true
+note = "Mutually exclusive with vk_force_mmvq."
+
+[[knob]]
+name = "vk_force_mmvq"
+layer = "env"
+key = "GGML_VK_FORCE_MMVQ"
+type = "bool"
+default = false
+gpu = true
+
+[[knob]]
+name = "vk_max_nodes_per_submit"
+layer = "env"
+key = "GGML_VK_MAX_NODES_PER_SUBMIT"
+type = "int"
+min = 1
+max = 1000
+enabled = false
+gpu = true
+note = "Graph nodes per command submit. Default and valid range unverified."
+
+# Found in the b11429 Windows ggml-vulkan.dll; not yet in the default space.
+[[knob]]
+name = "vk_disable_coopmat"
+layer = "env"
+key = "GGML_VK_DISABLE_COOPMAT"
+type = "bool"
+default = false
+enabled = false
+gpu = true
+
+[[knob]]
+name = "vk_disable_integer_dot_product"
+layer = "env"
+key = "GGML_VK_DISABLE_INTEGER_DOT_PRODUCT"
+type = "bool"
+default = false
+enabled = false
+gpu = true
+
+[[knob]]
+name = "vk_disable_dot2"
+layer = "env"
+key = "GGML_VK_DISABLE_DOT2"
+type = "bool"
+default = false
+enabled = false
+gpu = true
+
+[[knob]]
+name = "vk_disable_bfloat16"
+layer = "env"
+key = "GGML_VK_DISABLE_BFLOAT16"
+type = "bool"
+default = false
+enabled = false
+gpu = true
+
+[[knob]]
+name = "vk_disable_multi_add"
+layer = "env"
+key = "GGML_VK_DISABLE_MULTI_ADD"
+type = "bool"
+default = false
+enabled = false
+gpu = true
+
+[[knob]]
+name = "vk_async_use_transfer_queue"
+layer = "env"
+key = "GGML_VK_ASYNC_USE_TRANSFER_QUEUE"
+type = "bool"
+default = false
+enabled = false
+gpu = true
+
+[[knob]]
+name = "vk_enable_memory_priority"
+layer = "env"
+key = "GGML_VK_ENABLE_MEMORY_PRIORITY"
+type = "bool"
+default = false
+enabled = false
+gpu = true
