@@ -10,3 +10,9 @@ wheels/
 .venv
 
 .nvim
+
+# Measurement output (host names, user paths, hardware details): never in git
+runs/
+probes/
+opentuner.db/
+opentuner.log
