@@ -13,7 +13,7 @@
                   Windows power plan (powercfg); state is snapshotted first and restored on exit
 All standard OpenTuner flags (--technique, --test-limit, --stop-after, --database ...) work.
 
-Output: runs/<timestamp>-<opentune-base|opentune-guided>-<objective>/
+Output: runs/<timestamp>_llama-<model>_<opentune-base|opentune-guided>_<objective>/
     REPORT.md          run type, objective, baseline, space, best config vs baseline, top configs
                        (rewritten after every evaluation, so it is valid mid-run)
     meta.json          run type, args, space, baseline, system snapshot
@@ -85,7 +85,7 @@ class LlamaBenchTuner(MeasurementInterface):
             print(f"[{self.kind}] no --baseline given: measuring defaults once ...", flush=True)
             self.base = W.run({}, self.reg, self.wl)
             self.base_src = "measured once at the start of this run (no --baseline given)"
-        self.out = R.run_dir(self.kind, args.objective)
+        self.out = R.run_dir(self.wl.model, self.kind, args.objective)
         self.t0 = time.monotonic()
         dump(self.out / "meta.json", {
             "run_type": self.kind, "description": R.RUN_TYPES[self.kind],

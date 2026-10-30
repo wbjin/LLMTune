@@ -28,9 +28,10 @@ ai_workloads/
 └── runs/                    output (git-ignored)
 ```
 
-Every script takes `--dry-run` (print the command, run nothing), `--platform`, and the
-workload flags `--model -p -n -d --reps --delay --timeout`. Output goes to
-`runs/<timestamp>-<run type>[-<label>]/`, always with `REPORT.md` and `meta.json`.
+Every script takes `--platform` and the workload flags `--model -p -n -d --reps --delay --timeout`;
+`run_baseline.py` and `run_perf.py` also `--dry-run` (print the command, run nothing). Output goes to
+`runs/<timestamp>_llama-<model>_<config>_<test>/` (`<config>`: `default`, `best-<objective>`, or `--label`;
+OpenTuner: `..._opentune-base_<objective>`), always with `REPORT.md` and `meta.json`.
 
 ## Workload
 

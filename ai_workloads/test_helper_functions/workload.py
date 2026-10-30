@@ -20,7 +20,7 @@ class Workload:
     n_gen: int = 128        # token-generation test   -> TPS
     n_depth: int = 0        # pre-filled context before each test
     reps: int = 5           # llama bench repetitions per test
-    delay: int = 10         # seconds between llama bench tests (thermal)
+    delay: int = 0          # llama bench --delay: seconds of sleep before each test
     timeout: int = 1800
 
 

@@ -20,7 +20,7 @@ def workload_args(p):
     p.add_argument("-n", "--n-gen", type=int, default=d.n_gen)
     p.add_argument("-d", "--n-depth", type=int, default=d.n_depth)
     p.add_argument("--reps", type=int, default=d.reps, help="llama bench -r")
-    p.add_argument("--delay", type=int, default=d.delay, help="llama bench --delay (s)")
+    p.add_argument("--delay", type=int, default=d.delay, help="llama bench --delay: sleep before each test (s)")
     p.add_argument("--timeout", type=int, default=d.timeout)
 
 
@@ -44,6 +44,19 @@ def load_config(p, a, reg):
     if any(reg[n].layer in K.SYSTEM_LAYERS for n in cfg):
         p.error("system knobs (sysfs/powercfg) are set by the tuner (--allow-system), not here")
     return cfg
+
+
+def config_name(a):
+    """Config part of the run folder name: --label, "default", "best-<objective>" for a
+    best_config.json from an OpenTuner run folder, else the config file stem."""
+    if a.label:
+        return a.label
+    if not a.config:
+        return "default"
+    meta = Path(a.config).parent / "meta.json"
+    if meta.exists() and (obj := json.loads(meta.read_text()).get("objective")):
+        return f"best-{obj}"
+    return Path(a.config).stem
 
 
 def shell_command(argv, env):

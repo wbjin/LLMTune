@@ -1,6 +1,8 @@
-"""Human-readable output shared by run_baseline.py and tune.py.
+"""Human-readable output shared by the run_*.py scripts.
 
-Every run directory is named <timestamp>-<run type>[-<label>] and gets a
+Every run directory is named <timestamp>_<workload>-<model>_<a>_<b>
+(runs of one config: <config>_<test>, e.g. default_perf-stat; OpenTuner runs:
+opentune-base_<objective>) and gets a
 REPORT.md that says what kind of run it was, what was executed, under which
 system state, and what came out (with units).
 """
@@ -37,9 +39,12 @@ EFFECTIVE = ("backends", "devices", "gpu_info", "cpu_info", "model_type", "model
              "build_commit")
 
 
-def run_dir(kind, label=None):
-    assert kind in RUN_TYPES, kind
-    d = RUNS / (f"{datetime.now():%Y%m%d-%H%M%S}-{kind}" + (f"-{label}" if label else ""))
+def run_name(model, first, second, workload="llama"):
+    return f"{datetime.now():%Y%m%d-%H%M%S}_{workload}-{Path(model).stem}_{first}_{second}"
+
+
+def run_dir(model, first, second):
+    d = RUNS / run_name(model, first, second)
     d.mkdir(parents=True)
     return d
 

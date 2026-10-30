@@ -5,7 +5,7 @@
     python run_baseline.py --config cfg.json --label my-cfg
 
 Run type is chosen automatically: no --config -> BASELINE, with --config -> FIXED.
-Output: runs/<timestamp>-<baseline|fixed>[-<label>]/
+Output: runs/<timestamp>_llama-<model>_<config>_<baseline|fixed>/   (<config>: --label, default, best-<objective>)
     REPORT.md            human-readable: run type, command, settings, system, results, run conditions
     meta.json            run type, workload, config, argv, env overrides, system snapshot (before)
     trial_NN.json        one Measurement per trial (incl. raw llama bench JSON)
@@ -21,7 +21,7 @@ from test_helper_functions import knobs as K
 from test_helper_functions import report as R
 from test_helper_functions import system
 from test_helper_functions import workload as W
-from test_helper_functions.cli import config_args, dump, load_config, shell_command, workload_args, workload_from
+from test_helper_functions.cli import config_args, config_name, dump, load_config, shell_command, workload_args, workload_from
 
 
 def summarize(ms):
@@ -65,7 +65,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     workload_args(p)
     config_args(p)
-    p.add_argument("--label", help="optional suffix for the run directory name")
+    p.add_argument("--label", help="config name in the run folder name (default: default / best-<objective> / config file stem)")
     p.add_argument("--trials", type=int, default=3, help="full llama bench invocations")
     p.add_argument("--cooldown", type=int, default=60, help="seconds between trials")
     p.add_argument("--dry-run", action="store_true")
@@ -88,7 +88,7 @@ def main():
         return
 
     before = system.snapshot(reg)
-    out = R.run_dir(kind, a.label)
+    out = R.run_dir(wl.model, config_name(a), kind)
     dump(out / "meta.json", {"run_type": kind, "description": R.RUN_TYPES[kind],
                              "workload": asdict(wl), "config": cfg, "argv": argv,
                              "env": env_over, "trials": a.trials, "cooldown_s": a.cooldown,
