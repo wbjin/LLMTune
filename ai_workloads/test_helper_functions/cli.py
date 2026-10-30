@@ -30,10 +30,6 @@ def workload_from(a):
                       reps=a.reps, delay=a.delay, timeout=a.timeout)
 
 
-def config_args(p):
-    p.add_argument("--config", help="JSON file {knob: value}; omitted = defaults (baseline)")
-
-
 def load_config(p, a, reg):
     """Read and validate --config. Returns {} for the baseline."""
     cfg = json.loads(Path(a.config).read_text()) if a.config else {}

@@ -6,7 +6,6 @@ file, check constraints.
     python -m test_helper_functions.knobs --enabled            # only the knobs in the default search space
 """
 import argparse
-import json
 import os
 import tomllib
 from dataclasses import dataclass, replace
@@ -43,10 +42,6 @@ class Knob:
         return ", ".join(self.values)
 
 
-def _knobs_of(name, data):
-    return [Knob(**k, file=f"{name}.toml") for k in data.get("knob", [])]
-
-
 def load(platform=None):
     """Registry for a platform: llama.toml, then the platform file (plus `knobs_from`),
     then the platform's [override.<knob>] tables; gpu knobs disabled when gpu = false."""
@@ -57,7 +52,7 @@ def load(platform=None):
     sources = [("llama", llama), (plat.name, pdata)]
     sources += [(n, P.read(n)) for n in pdata.get("platform", {}).get("knobs_from", [])]
     for src, data in sources:
-        for k in _knobs_of(src, data):
+        for k in (Knob(**d, file=f"{src}.toml") for d in data.get("knob", [])):
             assert k.name not in knobs, f"{k.name} defined twice ({knobs.get(k.name, k).file}, {k.file})"
             knobs[k.name] = k
     for name, fields in pdata.get("override", {}).items():
@@ -90,10 +85,6 @@ def apply_space(knobs, space):
     return out
 
 
-def load_space(path):
-    return json.loads(Path(path).read_text()) if path else {}
-
-
 def _smt_sibling_mask():
     """Bitmask of the logical CPUs that go offline with SMT off (all but the first
     thread of each core). 0 if the topology is not readable (non-Linux)."""
@@ -108,23 +99,23 @@ def _smt_sibling_mask():
     return mask
 
 
+# Cross-knob constraints: forbidden combination -> test. cfg holds only the knobs being set;
+# missing = default. Also given to the LLM step as the list of forbidden combinations.
+CONSTRAINTS = {
+    "ubatch > batch": lambda c: c.get("ubatch", 512) > c.get("batch", 2048),
+    "quantized V cache needs flash_attn":
+        lambda c: c.get("cache_type_v", "f16") not in ("f16", "bf16") and c.get("flash_attn") == "off",
+    "vk_disable_mmvq and vk_force_mmvq both set": lambda c: c.get("vk_disable_mmvq") and c.get("vk_force_mmvq"),
+    "win_min_state > win_max_state": lambda c: c.get("win_min_state", 0) > c.get("win_max_state", 100),
+    "threads > physical cores with SMT off":
+        lambda c: c.get("smt") == "off" and c.get("threads", 1) > (os.cpu_count() or 2) // 2,
+    "cpu_mask uses offline SMT siblings":
+        lambda c: c.get("smt") == "off" and int(str(c.get("cpu_mask", "0x0")), 16) & _smt_sibling_mask(),
+}
+
+
 def violations(cfg):
-    """Cross-knob constraints. cfg holds only the knobs being set; missing = default."""
-    errs = []
-    if cfg.get("ubatch", 512) > cfg.get("batch", 2048):
-        errs.append("ubatch > batch")
-    if cfg.get("cache_type_v", "f16") not in ("f16", "bf16") and cfg.get("flash_attn") == "off":
-        errs.append("quantized V cache needs flash_attn")
-    if cfg.get("vk_disable_mmvq") and cfg.get("vk_force_mmvq"):
-        errs.append("vk_disable_mmvq and vk_force_mmvq both set")
-    if cfg.get("win_min_state", 0) > cfg.get("win_max_state", 100):
-        errs.append("win_min_state > win_max_state")
-    if cfg.get("smt") == "off":
-        if cfg.get("threads", 1) > (os.cpu_count() or 2) // 2:
-            errs.append("threads > physical cores with SMT off")
-        if int(str(cfg.get("cpu_mask", "0x0")), 16) & _smt_sibling_mask():
-            errs.append("cpu_mask uses offline SMT siblings")
-    return errs
+    return [msg for msg, bad in CONSTRAINTS.items() if bad(cfg)]
 
 
 def table(knobs, only_enabled=False):

@@ -39,12 +39,8 @@ EFFECTIVE = ("backends", "devices", "gpu_info", "cpu_info", "model_type", "model
              "build_commit")
 
 
-def run_name(model, first, second, workload="llama"):
-    return f"{datetime.now():%Y%m%d-%H%M%S}_{workload}-{Path(model).stem}_{first}_{second}"
-
-
 def run_dir(model, first, second):
-    d = RUNS / run_name(model, first, second)
+    d = RUNS / f"{datetime.now():%Y%m%d-%H%M%S}_llama-{Path(model).stem}_{first}_{second}"
     d.mkdir(parents=True)
     return d
 
@@ -73,10 +69,6 @@ def config_diff(cfg, reg):
     return {n: v for n, v in cfg.items() if v != reg[n].default}
 
 
-def effective_settings(raw):
-    return {k: raw[0][k] for k in EFFECTIVE if raw and k in raw[0]}
-
-
 def fmt_measurement(m):
     if not m.ok:
         return f"FAILED: {m.error.strip().splitlines()[-1] if m.error.strip() else 'unknown'}"
@@ -92,14 +84,6 @@ def measurement_cells(m):
     if not m.ok:
         return f"{fmt_measurement(m)} | | | |"
     return f"{m.tg_tps:.2f} | {m.pp_tps:.1f} | {m.ttft_s:.3f} | {m.tpot_ms:.1f} | {m.wall_s:.0f}"
-
-
-def pct(new, old, better):
-    if not old:
-        return "n/a"
-    d = (new - old) / old * 100
-    good = d > 0 if better == "higher" else d < 0
-    return f"{d:+.1f}% ({'better' if good else 'worse' if d else 'same'})"
 
 
 def conditions(before, after=None):
@@ -127,19 +111,6 @@ def system_lines(snap):
             f"- AC power: {snap.get('on_ac_power')} | load avg: {snap.get('loadavg')}",
             f"- CPU package temp: {snap.get('thermal_c', {}).get('x86_pkg_temp')} C",
             "- system knobs: " + (", ".join(f"{k}={v}" for k, v in knobs.items()) or "none")]
-
-
-def metrics_table(summary):
-    rows = ["| metric | meaning | unit | better | mean | sd | CV | min | max |",
-            "|---|---|---|---|---|---|---|---|---|"]
-    for f, (what, unit, better) in METRICS.items():
-        s = summary.get(f)
-        if not s:
-            continue
-        cv = s["sd"] / s["mean"] * 100 if s["mean"] else 0
-        rows.append(f"| {f} | {what} | {unit} | {better} | {s['mean']:.3f} | {s['sd']:.3f} "
-                    f"| {cv:.1f}% | {s['min']:.3f} | {s['max']:.3f} |")
-    return rows
 
 
 def write(path, lines):

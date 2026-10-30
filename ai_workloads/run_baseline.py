@@ -21,7 +21,7 @@ from test_helper_functions import knobs as K
 from test_helper_functions import report as R
 from test_helper_functions import system
 from test_helper_functions import workload as W
-from test_helper_functions.cli import config_args, config_name, dump, load_config, shell_command, workload_args, workload_from
+from test_helper_functions.cli import config_name, dump, load_config, shell_command, workload_args, workload_from
 
 
 def summarize(ms):
@@ -44,7 +44,8 @@ def write_report(out, kind, a, wl, cfg, reg, cmd, before, after, ms, summary):
              f"- trials: {a.trials} full llama bench invocations, {a.cooldown}s cooldown between them",
              f"- config: {R.describe_config(cfg, reg)}",
              f"- command: `{cmd}`", ""]
-    eff = R.effective_settings(next((m.raw for m in ms if m.ok), []))
+    raw = next((m.raw[0] for m in ms if m.ok and m.raw), {})
+    eff = {k: raw[k] for k in R.EFFECTIVE if k in raw}
     if eff:
         lines += ["## Settings llama bench actually used", "",
                   "(includes defaults it resolved itself, e.g. -1 = auto/all)", ""]
@@ -54,7 +55,14 @@ def write_report(out, kind, a, wl, cfg, reg, cmd, before, after, ms, summary):
         lines += ["## System after", "", *R.system_lines(after), ""]
     if summary:
         lines += [f"## Results ({summary['ok']}/{summary['trials']} trials ok)", "",
-                  *R.metrics_table(summary), ""]
+                  "| metric | meaning | unit | better | mean | sd | CV | min | max |",
+                  "|---|---|---|---|---|---|---|---|---|"]
+        for f, (what, unit, better) in R.METRICS.items():
+            if s := summary.get(f):
+                cv = s["sd"] / s["mean"] * 100 if s["mean"] else 0
+                lines.append(f"| {f} | {what} | {unit} | {better} | {s['mean']:.3f} | {s['sd']:.3f} "
+                             f"| {cv:.1f}% | {s['min']:.3f} | {s['max']:.3f} |")
+        lines.append("")
     lines += ["## Per trial", "", f"| trial | {R.MEASUREMENT_COLS} |", "|---|---|---|---|---|---|"]
     lines += [f"| {i} | {R.measurement_cells(m)} |" for i, m in enumerate(ms)] + [""]
     lines += ["## Run conditions", ""] + [f"- {x}" for x in R.conditions(before, after)]
@@ -64,7 +72,7 @@ def write_report(out, kind, a, wl, cfg, reg, cmd, before, after, ms, summary):
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     workload_args(p)
-    config_args(p)
+    p.add_argument("--config", help="JSON file {knob: value}; omitted = defaults (baseline)")
     p.add_argument("--label", help="config name in the run folder name (default: default / best-<objective> / config file stem)")
     p.add_argument("--trials", type=int, default=3, help="full llama bench invocations")
     p.add_argument("--cooldown", type=int, default=60, help="seconds between trials")
@@ -103,7 +111,7 @@ def main():
         print(f"[{kind}] trial {i + 1}/{a.trials} running ...", flush=True)
         m = W.run(cfg, reg, wl)
         ms.append(m)
-        dump(out / f"trial_{i:02d}.json", m.to_dict())
+        dump(out / f"trial_{i:02d}.json", asdict(m))
         print(f"[{kind}] trial {i + 1}/{a.trials}: {R.fmt_measurement(m)}", flush=True)
 
     after = system.snapshot(reg)

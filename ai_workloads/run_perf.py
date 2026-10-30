@@ -44,7 +44,7 @@ from test_helper_functions import platforms as P
 from test_helper_functions import report as R
 from test_helper_functions import system
 from test_helper_functions import workload as W
-from test_helper_functions.cli import config_args, config_name, dump, load_config, shell_command, workload_args, workload_from
+from test_helper_functions.cli import config_name, dump, load_config, shell_command, workload_args, workload_from
 
 EVENTS = ("cycles,instructions,cache-references,cache-misses,branches,branch-misses,"
           "context-switches,cpu-migrations,page-faults")
@@ -55,16 +55,6 @@ RATIOS = {"ipc": ("instructions", "cycles", 1),
           "branch_miss_rate": ("branch-misses", "branches", 1)}
 SOFTWARE = {"context-switches", "cpu-migrations", "page-faults", "minor-faults", "major-faults",
             "task-clock", "cpu-clock", "alignment-faults", "emulation-faults"}
-
-
-def check_perf(p):
-    if not shutil.which(PERF):
-        p.error("perf not found (install linux-tools-$(uname -r))")
-    level = int(Path("/proc/sys/kernel/perf_event_paranoid").read_text())
-    if level > 2 and os.geteuid() != 0:
-        p.error(f"kernel.perf_event_paranoid is {level}; perf cannot count as a normal user.\n"
-                "  fix for this boot: sudo sysctl kernel.perf_event_paranoid=1")
-    return level
 
 
 # ------------------------------------------------------------------ stat ----
@@ -117,11 +107,6 @@ def summary(xs):
             f"min {min(xs):.4g} / max {max(xs):.4g}")
 
 
-def stats_row(name, xs):
-    return (f"| {name} | {statistics.fmean(xs):.4g} | {statistics.median(xs):.4g} "
-            f"| {min(xs):.4g} | {max(xs):.4g} | {len(xs)} |")
-
-
 def run_stat(a, argv, env, out, wl):
     perf_argv = [PERF, "stat", "-I", str(a.interval), "-x", ",", "-e", a.events,
                  "-o", str(out / "perf_stat.csv"), "--"] + argv
@@ -156,7 +141,8 @@ def run_stat(a, argv, env, out, wl):
              "| metric | mean | median | min | max | n |", "|---|---|---|---|---|---|"]
     for name in met_names:
         if xs := [m[name] for m in kept if name in m]:
-            lines.append(stats_row(name, xs))
+            lines.append(f"| {name} | {statistics.fmean(xs):.4g} | {statistics.median(xs):.4g} "
+                         f"| {min(xs):.4g} | {max(xs):.4g} | {len(xs)} |")
     totals = defaultdict(float)
     for _, ev in intervals:
         for e, v in ev.items():
@@ -217,7 +203,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("mode", choices=("stat", "record"))
     workload_args(p)
-    config_args(p)
+    p.add_argument("--config", help="JSON file {knob: value}; omitted = defaults (baseline)")
     p.add_argument("--label", help="config name in the run folder name (default: default / best-<objective> / config file stem)")
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--interval", type=int, default=1000, help="stat: perf stat -I interval (ms)")
@@ -229,7 +215,15 @@ def main():
 
     if P.select(a.platform).windows_exe:
         p.error(f"platform {a.platform} runs a Windows .exe; Linux perf cannot profile it")
-    paranoid = check_perf(p) if not a.dry_run else None
+    paranoid = None
+    if not a.dry_run:
+        if not shutil.which(PERF):
+            p.error("perf not found. Set $PERF, or unpack Ubuntu's perf (no sudo): mkdir ~/perf-ubuntu && cd ~/perf-ubuntu\n"
+                    "  && apt download linux-perf && dpkg-deb -x linux-perf_*.deb .   (see RUNNING.md)")
+        paranoid = int(Path("/proc/sys/kernel/perf_event_paranoid").read_text())
+        if paranoid > 2 and os.geteuid() != 0:
+            p.error(f"kernel.perf_event_paranoid is {paranoid}; perf cannot count as a normal user.\n"
+                    "  fix for this boot: sudo sysctl kernel.perf_event_paranoid=1")
     reg = K.load(a.platform)
     wl = workload_from(a)
     cfg = load_config(p, a, reg)

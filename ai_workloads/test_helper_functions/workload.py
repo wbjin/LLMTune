@@ -7,7 +7,7 @@ System knobs (sysfs, powercfg) are not applied here; see system.py.
 import json
 import os
 import subprocess
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 
 from . import platforms as P
 
@@ -37,13 +37,6 @@ class Measurement:
     error: str = ""
     raw: list = field(default_factory=list, repr=False)
 
-    def to_dict(self):
-        return asdict(self)
-
-
-def _fmt(knob, value):
-    return ("1" if value else "0") if knob.type == "bool" else str(value)
-
 
 def build(cfg, knobs, wl):
     """Return (argv, env) for a config. Pure; nothing is executed."""
@@ -55,7 +48,7 @@ def build(cfg, knobs, wl):
     for name, value in cfg.items():
         k = knobs[name]
         if k.layer == "flag":
-            argv += [k.key, _fmt(k, value)]
+            argv += [k.key, ("1" if value else "0") if k.type == "bool" else str(value)]
         elif k.layer == "env":
             if k.type == "bool":
                 env.pop(k.key, None)

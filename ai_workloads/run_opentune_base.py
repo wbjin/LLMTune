@@ -27,6 +27,7 @@ import json
 import subprocess
 import sys
 import time
+from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 
@@ -65,7 +66,7 @@ OBJECTIVE_DOC = {
 class LlamaBenchTuner(MeasurementInterface):
     def __init__(self, args):
         super().__init__(args, program_name="llama-bench")
-        space = K.load_space(args.space)
+        space = json.loads(Path(args.space).read_text()) if args.space else {}
         self.kind = "opentune-guided" if args.space else "opentune-base"
         self.reg = K.apply_space(K.load(args.platform), space)
         self.seeds = space.get("seeds", [])
@@ -94,7 +95,7 @@ class LlamaBenchTuner(MeasurementInterface):
             "run_type": self.kind, "description": R.RUN_TYPES[self.kind],
             "objective": args.objective, "objective_formula": self._objective_doc(),
             "args": vars(args), "space": list(self.space), "seeds": self.seeds,
-            "baseline": self.base.to_dict(), "baseline_source": self.base_src,
+            "baseline": asdict(self.base), "baseline_source": self.base_src,
             "system_before": self.snap})
         print(R.banner(self.kind, [
             f"objective: {self._objective_doc()}",
@@ -136,7 +137,7 @@ class LlamaBenchTuner(MeasurementInterface):
                 self.touched |= {n for n in cfg if self.reg[n].layer in K.SYSTEM_LAYERS}
                 system.apply(cfg, self.reg)
                 m = W.run(cfg, self.reg, self.wl)
-                rec["measurement"] = {k: v for k, v in m.to_dict().items() if k != "raw"}
+                rec["measurement"] = {k: v for k, v in asdict(m).items() if k != "raw"}
                 if not m.ok:
                     err = m.error.strip().splitlines()[-1] if m.error.strip() else "failed"
             except PermissionError as e:
@@ -200,8 +201,10 @@ class LlamaBenchTuner(MeasurementInterface):
             for f, (what, unit, better) in R.METRICS.items():
                 b, n = getattr(self.base, f), getattr(m, f)
                 if b:
+                    d = (n - b) / b * 100
+                    good = d > 0 if better == "higher" else d < 0
                     lines.append(f"| {f} ({unit}, {better} is better) | {b:.3f} | {n:.3f} "
-                                 f"| {R.pct(n, b, better)} |")
+                                 f"| {d:+.1f}% ({'better' if good else 'worse' if d else 'same'}) |")
             lines += ["", "## Top 5 evaluations", "",
                       f"| score | {R.MEASUREMENT_COLS} | changed vs default |",
                       "|---|---|---|---|---|---|---|"]
