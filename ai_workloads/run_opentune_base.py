@@ -17,12 +17,15 @@ Output: runs/<timestamp>_llama-<model>_<opentune-base|opentune-guided>_<objectiv
     REPORT.md          run type, objective, baseline, space, best config vs baseline, top configs
                        (rewritten after every evaluation, so it is valid mid-run)
     meta.json          run type, args, space, baseline, system snapshot
+    progress.png       score per evaluation + best so far (plot_opentune.py, at the end)
     trials.jsonl       one line per evaluation actually executed (or rejected by a constraint):
                        config, measurement, score, error, elapsed_s (since tuning start), finished_at
     best_config.json   written when OpenTuner finishes
 """
 import argparse
 import json
+import subprocess
+import sys
 import time
 from datetime import datetime
 from pathlib import Path
@@ -238,6 +241,9 @@ def main():
         if tuner.touched:
             system.restore(tuner.snap, tuner.reg, tuner.touched)
             print(f"system knobs restored: {sorted(tuner.touched)}")
+        if tuner.out and (tuner.out / "trials.jsonl").exists():   # progress.png, also after Ctrl+C
+            subprocess.run([sys.executable, str(Path(__file__).with_name("plot_opentune.py")),
+                            str(tuner.out / "trials.jsonl")])
 
 
 if __name__ == "__main__":

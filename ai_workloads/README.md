@@ -73,7 +73,8 @@ being changed; `{}` is the default.
 
 - `run_baseline.py`: `summary.json` (mean/sd/min/max per metric), `trial_NN.json`.
 - `run_opentune_base.py`: `trials.jsonl`, one line per evaluation (config, measurement, score,
-  `elapsed_s`, `finished_at`): the data for a progress plot. `best_config.json` at the end.
+  `elapsed_s`, `finished_at`). `best_config.json` and `progress.png` (score per evaluation, best so
+  far; `plot_opentune.py`, also standalone) at the end.
 - `run_perf.py stat`: metrics (IPC, miss rates, events per 1000 instructions) computed per
   interval, first interval discarded, then summarised. Raw counts are in `perf_stat.csv`
   and `intervals.csv`, for debugging only.
