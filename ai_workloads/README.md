@@ -78,7 +78,7 @@ being changed; `{}` is the default.
 - `run_perf.py stat`: metrics (IPC, miss rates, events per 1000 instructions) computed per
   interval, first interval discarded, then summarised. Raw counts are in `perf_stat.csv`
   and `intervals.csv`, for debugging only.
-- `run_perf.py record`: `perf.data`, `top_symbols.txt`.
+- `run_perf.py record`: `perf.data`, `top_symbols.txt`, `flamegraph.svg` (`plot_perf.py`, also standalone).
 
 ## Known limits
 

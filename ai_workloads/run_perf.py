@@ -21,8 +21,8 @@ Output: runs/<timestamp>_llama-<model>_<config>_<perf-stat|perf-record>/   (<con
             intervals.csv  one row per interval: raw counts, then the per-interval metrics
                            (first row = the discarded interval)
             telemetry.csv  per interval: mean/min/max core MHz and package temp, if the host exposes them
-            perf_stat.png  every metric per interval over time (made by plot_perf_stat.py)
-    record: perf.data, top_symbols.txt
+            perf_stat.png  every metric per interval over time (made by plot_perf.py)
+    record: perf.data, top_symbols.txt, flamegraph.svg (made by plot_perf.py)
 """
 import argparse
 import glob
@@ -38,6 +38,7 @@ from collections import defaultdict
 from dataclasses import asdict
 from pathlib import Path
 
+from plot_perf import PERF   # a perf that can read symbols, if installed
 from test_helper_functions import knobs as K
 from test_helper_functions import platforms as P
 from test_helper_functions import report as R
@@ -57,7 +58,7 @@ SOFTWARE = {"context-switches", "cpu-migrations", "page-faults", "minor-faults",
 
 
 def check_perf(p):
-    if not shutil.which("perf"):
+    if not shutil.which(PERF):
         p.error("perf not found (install linux-tools-$(uname -r))")
     level = int(Path("/proc/sys/kernel/perf_event_paranoid").read_text())
     if level > 2 and os.geteuid() != 0:
@@ -122,7 +123,7 @@ def stats_row(name, xs):
 
 
 def run_stat(a, argv, env, out, wl):
-    perf_argv = ["perf", "stat", "-I", str(a.interval), "-x", ",", "-e", a.events,
+    perf_argv = [PERF, "stat", "-I", str(a.interval), "-x", ",", "-e", a.events,
                  "-o", str(out / "perf_stat.csv"), "--"] + argv
     stop = threading.Event()
     sampler = threading.Thread(target=sample_telemetry, daemon=True,
@@ -172,8 +173,8 @@ def run_stat(a, argv, env, out, wl):
         if temps:
             lines.append(f"- package temp C: {summary(temps)}")
         lines.append("")
-    # Plots over time: plot_perf_stat.py stays a standalone script, so run it as one.
-    plot = subprocess.run([sys.executable, str(Path(__file__).with_name("plot_perf_stat.py")),
+    # Plots over time: plot_perf.py stays a standalone script, so run it as one.
+    plot = subprocess.run([sys.executable, str(Path(__file__).with_name("plot_perf.py")),
                            str(out / "perf_stat.csv"), str(out / "perf_stat.png")],
                           capture_output=True, text=True)
     lines += ["Plots over time: perf_stat.png" if plot.returncode == 0 else
@@ -189,23 +190,27 @@ def run_record(a, argv, env, out, wl):
     tmp = Path(tempfile.mkdtemp(prefix="perf-record-", dir="/tmp"))
     try:                            # finally: also removes /tmp data on Ctrl+C
         data = tmp / "perf.data"
-        perf_argv = ["perf", "record", "-g", "-F", str(a.freq), "-o", str(data), "--"] + argv
+        perf_argv = [PERF, "record", "-g", "-F", str(a.freq), "-o", str(data), "--"] + argv
         t0 = time.monotonic()
         proc = subprocess.run(perf_argv, env=env, capture_output=True, text=True, timeout=wl.timeout)
         wall = time.monotonic() - t0
         if proc.returncode != 0:
             return proc, wall, [], []
-        rep = subprocess.run(["perf", "report", "-i", str(data), "--stdio", "--no-children",
+        rep = subprocess.run([PERF, "report", "-i", str(data), "--stdio", "--no-children",
                               "--sort", "dso,symbol", "--percent-limit", "0.5"],
                              capture_output=True, text=True)
         shutil.copyfile(data, out / "perf.data")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
+    fg = subprocess.run([sys.executable, str(Path(__file__).with_name("plot_perf.py")),
+                         str(out / "perf.data")], capture_output=True, text=True)
     top = [l for l in rep.stdout.splitlines() if l.strip() and not l.startswith("#")
            and "%" in l.split()[0]][:a.top]
     return proc, wall, [f"- perf: `perf record -g -F {a.freq}`, {wall:.0f} s wall"], [
                         f"## Top {len(top)} symbols by self time", "", "```", *top, "```", "",
-                        "Full list: top_symbols.txt; interactive: `perf report -i perf.data`.", ""]
+                        "Full list: top_symbols.txt; interactive: `perf report -i perf.data`.", "",
+                        "Flame graph: flamegraph.svg" if fg.returncode == 0 else
+                        f"Flame graph failed: {(fg.stderr.strip().splitlines() or ['?'])[-1]}", ""]
 
 
 def main():
