@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/postgres_env.sh"
+
 # Override these settings through environment variables.
 CLIENTS="${CLIENTS:-16}"
 THREADS="${THREADS:-4}"
@@ -21,26 +24,24 @@ for value in "$CLIENTS" "$THREADS" "$DURATION" "$SCALE"; do
   fi
 done
 
-PG=(sudo -u postgres)
-CONNECTION=(-h /var/run/postgresql -p 5432)
-"${PG[@]}" pg_isready "${CONNECTION[@]}"
+"$PG_BIN/pg_isready" "${CONNECTION[@]}"
 
-exists=$("${PG[@]}" psql "${CONNECTION[@]}" -X -At \
+exists=$("$PG_BIN/psql" "${CONNECTION[@]}" -X -At \
   -v ON_ERROR_STOP=1 -d postgres \
   -c "SELECT 1 FROM pg_database WHERE datname = 'pgbench_test'")
 
 if [[ "$exists" != "1" ]]; then
-  "${PG[@]}" createdb "${CONNECTION[@]}" pgbench_test
+  "$PG_BIN/createdb" "${CONNECTION[@]}" pgbench_test
   CLEAN=true
 fi
 
 if [[ "$CLEAN" == true ]]; then
   echo "Rebuilding pgbench tables with scale $SCALE..."
-  "${PG[@]}" pgbench "${CONNECTION[@]}" \
+  "$PG_BIN/pgbench" "${CONNECTION[@]}" \
     -i -s "$SCALE" pgbench_test
 fi
 
 # Extra arguments are forwarded to pgbench, e.g. -S for read-only.
-"${PG[@]}" pgbench "${CONNECTION[@]}" \
+"$PG_BIN/pgbench" "${CONNECTION[@]}" \
   -c "$CLIENTS" -j "$THREADS" -T "$DURATION" -P 5 \
   "$@" pgbench_test

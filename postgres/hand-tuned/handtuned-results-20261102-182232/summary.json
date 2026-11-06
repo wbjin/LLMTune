@@ -1,0 +1,24 @@
+{
+  "selected": {
+    "shared_buffers": "4GB",
+    "max_wal_size": "1GB",
+    "wal_compression": "off"
+  },
+  "baseline_validation": {
+    "median": 1056.761885,
+    "range": 0.0,
+    "runs": [
+      1056.761885
+    ]
+  },
+  "selected_validation": {
+    "median": 1588.167513,
+    "range": 0.0,
+    "runs": [
+      1588.167513
+    ]
+  },
+  "speedup": 1.5028622204707924,
+  "elapsed_seconds": 486.0354891830357,
+  "note": "Selection threshold is a heuristic, not a significance test."
+}

@@ -1,0 +1,20 @@
+pgbench (14.24 (Ubuntu 14.24-0ubuntu0.22.04.1))
+starting vacuum...end.
+progress: 5.0 s, 1595.7 tps, lat 9.930 ms stddev 6.522
+progress: 10.0 s, 1601.1 tps, lat 9.961 ms stddev 6.309
+progress: 15.0 s, 1609.6 tps, lat 9.912 ms stddev 6.510
+progress: 20.0 s, 1603.4 tps, lat 9.947 ms stddev 6.663
+progress: 25.0 s, 1590.0 tps, lat 10.037 ms stddev 6.930
+progress: 30.0 s, 1619.0 tps, lat 9.848 ms stddev 6.252
+transaction type: <builtin: TPC-B (sort of)>
+scaling factor: 10
+query mode: simple
+number of clients: 16
+number of threads: 4
+duration: 30 s
+number of transactions actually processed: 48108
+latency average = 9.944 ms
+latency stddev = 6.545 ms
+initial connection time = 26.388 ms
+tps = 1602.886181 (without initial connection time)
+

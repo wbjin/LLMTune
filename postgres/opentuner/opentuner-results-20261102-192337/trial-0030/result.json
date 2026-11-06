@@ -1,0 +1,122 @@
+{
+  "median_tps": 1595.032126,
+  "measurements": [
+    {
+      "tps": 1595.032126,
+      "latency_ms": 9.99,
+      "before": {
+        "bgwriter": {
+          "checkpoints_timed": 14,
+          "checkpoints_req": 68,
+          "checkpoint_write_time": 158111,
+          "checkpoint_sync_time": 1430,
+          "buffers_checkpoint": 1123564,
+          "buffers_clean": 28674,
+          "maxwritten_clean": 264,
+          "buffers_backend": 2726163,
+          "buffers_backend_fsync": 0,
+          "buffers_alloc": 1231619,
+          "stats_reset": "2026-11-02T17:41:28.513231-07:00"
+        },
+        "wal": {
+          "wal_records": 25480006,
+          "wal_fpi": 168075,
+          "wal_bytes": 9005390331,
+          "wal_buffers_full": 58033,
+          "wal_write": 1023406,
+          "wal_sync": 965286,
+          "wal_write_time": 0,
+          "wal_sync_time": 0,
+          "stats_reset": "2026-11-02T17:41:28.513231-07:00"
+        },
+        "database": {
+          "datid": "16603",
+          "datname": "pgbench_opentuner",
+          "numbackends": 0,
+          "xact_commit": 2737045,
+          "xact_rollback": 0,
+          "blks_read": 3307858,
+          "blks_hit": 75074394,
+          "tup_returned": 82928360,
+          "tup_fetched": 10892826,
+          "tup_inserted": 53742959,
+          "tup_updated": 8198463,
+          "tup_deleted": 5012,
+          "conflicts": 0,
+          "temp_files": 204,
+          "temp_bytes": 1023229952,
+          "deadlocks": 0,
+          "checksum_failures": null,
+          "checksum_last_failure": null,
+          "blk_read_time": 0,
+          "blk_write_time": 0,
+          "session_time": 28494766.03,
+          "active_time": 26265860.78,
+          "idle_in_transaction_time": 1764314.51,
+          "sessions": 1768,
+          "sessions_abandoned": 0,
+          "sessions_fatal": 0,
+          "sessions_killed": 0,
+          "stats_reset": "2026-11-02T18:36:19.531512-07:00"
+        }
+      },
+      "after": {
+        "bgwriter": {
+          "checkpoints_timed": 14,
+          "checkpoints_req": 68,
+          "checkpoint_write_time": 158111,
+          "checkpoint_sync_time": 1430,
+          "buffers_checkpoint": 1123564,
+          "buffers_clean": 28674,
+          "maxwritten_clean": 264,
+          "buffers_backend": 2726163,
+          "buffers_backend_fsync": 0,
+          "buffers_alloc": 1232382,
+          "stats_reset": "2026-11-02T17:41:28.513231-07:00"
+        },
+        "wal": {
+          "wal_records": 25814672,
+          "wal_fpi": 168080,
+          "wal_bytes": 9027766799,
+          "wal_buffers_full": 58033,
+          "wal_write": 1037505,
+          "wal_sync": 979385,
+          "wal_write_time": 0,
+          "wal_sync_time": 0,
+          "stats_reset": "2026-11-02T17:41:28.513231-07:00"
+        },
+        "database": {
+          "datid": "16603",
+          "datname": "pgbench_opentuner",
+          "numbackends": 0,
+          "xact_commit": 2784967,
+          "xact_rollback": 0,
+          "blks_read": 3308498,
+          "blks_hit": 76329166,
+          "tup_returned": 83164727,
+          "tup_fetched": 11087568,
+          "tup_inserted": 53790848,
+          "tup_updated": 8342120,
+          "tup_deleted": 5012,
+          "conflicts": 0,
+          "temp_files": 204,
+          "temp_bytes": 1023229952,
+          "deadlocks": 0,
+          "checksum_failures": null,
+          "checksum_last_failure": null,
+          "blk_read_time": 0,
+          "blk_write_time": 0,
+          "session_time": 28974801.842,
+          "active_time": 26707364.164,
+          "idle_in_transaction_time": 1794900.399,
+          "sessions": 1785,
+          "sessions_abandoned": 0,
+          "sessions_fatal": 0,
+          "sessions_killed": 0,
+          "stats_reset": "2026-11-02T18:36:19.531512-07:00"
+        }
+      }
+    }
+  ],
+  "elapsed_seconds": 50.63812160002999
+}

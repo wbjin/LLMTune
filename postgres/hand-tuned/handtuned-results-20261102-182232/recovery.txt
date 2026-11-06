@@ -1,0 +1,4 @@
+Original auto.conf existed: True
+If interrupted by SIGKILL or power loss, restore /users/wbjin/pgdata/postgresql.auto.conf from /users/wbjin/LLMTune/postgres/hand-tuned/handtuned-results-20261102-182232/postgresql.auto.conf.original (or remove auto.conf if originally absent), then run:
+/usr/lib/postgresql/14/bin/pg_ctl -D /users/wbjin/pgdata -l /users/wbjin/postgres.log -w restart
+Do not edit PostgreSQL configuration concurrently with this test.

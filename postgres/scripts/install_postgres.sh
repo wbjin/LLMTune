@@ -1,35 +1,32 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if ! command -v apt-get >/dev/null 2>&1; then
-  echo "This script requires Ubuntu/Debian with apt-get." >&2
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/postgres_env.sh"
+
+# System packages must already be installed; initialize only a new instance.
+mkdir -p "$PG_SOCKET"
+chmod 700 "$PG_SOCKET"
+if [[ ! -e "$PG_DATA" ]]; then
+  umask 077
+  "$PG_BIN/initdb" -D "$PG_DATA" -U wbjin \
+    --auth-local=peer --auth-host=scram-sha-256
+  cat >> "$PG_DATA/postgresql.conf" <<'CONF'
+listen_addresses = 'localhost'
+port = 5432
+unix_socket_directories = '/users/wbjin/pgsocket'
+unix_socket_permissions = 0700
+CONF
+elif [[ ! -f "$PG_DATA/PG_VERSION" ]]; then
+  echo "$PG_DATA exists but is not initialized; inspect it before proceeding." >&2
   exit 1
 fi
 
-if ! command -v systemctl >/dev/null 2>&1; then
-  echo "This script requires systemd to manage PostgreSQL." >&2
+if [[ "$(cat "$PG_DATA/PG_VERSION")" != 14 ]]; then
+  echo "Expected a PostgreSQL 14 data directory." >&2
   exit 1
 fi
 
-SUDO=()
-if [[ "$EUID" -ne 0 ]]; then
-  if ! command -v sudo >/dev/null 2>&1; then
-    echo "Run as root or install sudo." >&2
-    exit 1
-  fi
-  sudo -v
-  SUDO=(sudo)
-fi
-
-"${SUDO[@]}" apt-get update
-"${SUDO[@]}" apt-get install -y \
-  postgresql postgresql-client postgresql-contrib
-"${SUDO[@]}" systemctl enable --now postgresql
-
-psql --version
-pgbench --version
-"${SUDO[@]}" runuser -u postgres -- pg_isready
-"${SUDO[@]}" runuser -u postgres -- \
-  psql -v ON_ERROR_STOP=1 -c 'SELECT version();'
-
-echo "PostgreSQL and pgbench are installed and verified."
+"$PG_BIN/psql" --version
+"$PG_BIN/pgbench" --version
+echo "User-owned instance ready. Run: bash \"$SCRIPT_DIR/start_postgres.sh\""

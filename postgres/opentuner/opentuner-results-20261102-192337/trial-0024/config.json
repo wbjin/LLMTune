@@ -1,0 +1,7 @@
+{
+  "commit_delay": "10",
+  "max_wal_size": "2GB",
+  "wal_compression": "off",
+  "shared_buffers": "2GB",
+  "commit_siblings": "1"
+}

@@ -1,0 +1,98 @@
+[
+  {
+    "config": {
+      "shared_buffers": "4GB",
+      "max_wal_size": "1GB",
+      "wal_compression": "off"
+    },
+    "result": {
+      "median": 1599.556974,
+      "range": 0.0,
+      "runs": [
+        1599.556974
+      ]
+    },
+    "accepted": true,
+    "threshold_tps": 54.04619755
+  },
+  {
+    "config": {
+      "shared_buffers": "8GB",
+      "max_wal_size": "1GB",
+      "wal_compression": "off"
+    },
+    "result": {
+      "median": 1584.646242,
+      "range": 0.0,
+      "runs": [
+        1584.646242
+      ]
+    },
+    "accepted": false,
+    "threshold_tps": 79.97784870000001
+  },
+  {
+    "config": {
+      "shared_buffers": "16GB",
+      "max_wal_size": "1GB",
+      "wal_compression": "off"
+    },
+    "result": {
+      "median": 1601.783696,
+      "range": 0.0,
+      "runs": [
+        1601.783696
+      ]
+    },
+    "accepted": false,
+    "threshold_tps": 79.97784870000001
+  },
+  {
+    "config": {
+      "shared_buffers": "4GB",
+      "max_wal_size": "4GB",
+      "wal_compression": "off"
+    },
+    "result": {
+      "median": 1609.436608,
+      "range": 0.0,
+      "runs": [
+        1609.436608
+      ]
+    },
+    "accepted": false,
+    "threshold_tps": 79.97784870000001
+  },
+  {
+    "config": {
+      "shared_buffers": "4GB",
+      "max_wal_size": "8GB",
+      "wal_compression": "off"
+    },
+    "result": {
+      "median": 1594.414751,
+      "range": 0.0,
+      "runs": [
+        1594.414751
+      ]
+    },
+    "accepted": false,
+    "threshold_tps": 79.97784870000001
+  },
+  {
+    "config": {
+      "shared_buffers": "4GB",
+      "max_wal_size": "1GB",
+      "wal_compression": "on"
+    },
+    "result": {
+      "median": 1602.886181,
+      "range": 0.0,
+      "runs": [
+        1602.886181
+      ]
+    },
+    "accepted": false,
+    "threshold_tps": 79.97784870000001
+  }
+]

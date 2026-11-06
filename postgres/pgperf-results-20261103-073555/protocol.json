@@ -1,0 +1,30 @@
+{
+  "config": "/users/wbjin/LLMTune/postgres/opentuner/opentuner-results-20261102-192337/best-config.json",
+  "duration": 30,
+  "warmup": 5,
+  "scale": 10,
+  "rounds": 2,
+  "interval": 1000,
+  "events": "cycles,instructions,cache-references,cache-misses,branches,branch-misses,context-switches,cpu-migrations,page-faults,syscalls:sys_enter_pread64,syscalls:sys_enter_pwrite64,syscalls:sys_enter_preadv,syscalls:sys_enter_pwritev,syscalls:sys_enter_fdatasync,syscalls:sys_enter_fsync",
+  "sudo_perf": true,
+  "output": "/users/wbjin/LLMTune/postgres/pgperf-results-20261103-073555",
+  "dry_run": false,
+  "configurations": {
+    "default": {
+      "shared_buffers": "128MB",
+      "max_wal_size": "1GB",
+      "wal_compression": "off",
+      "commit_delay": "0",
+      "commit_siblings": "5"
+    },
+    "optimized": {
+      "commit_delay": "0",
+      "max_wal_size": "1GB",
+      "wal_compression": "on",
+      "shared_buffers": "16GB",
+      "commit_siblings": "10"
+    }
+  },
+  "scope": "postmaster, workers and inherited descendants",
+  "perf_version": "perf version 5.15.209"
+}

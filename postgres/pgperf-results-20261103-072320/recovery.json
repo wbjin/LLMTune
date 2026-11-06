@@ -1,0 +1,6 @@
+{
+  "target": "/users/wbjin/pgdata/postgresql.auto.conf",
+  "backup": "/users/wbjin/LLMTune/postgres/pgperf-results-20261103-072320/postgresql.auto.conf.original",
+  "originally_existed": true,
+  "instructions": "If terminated without cleanup, restore the original file (or remove it if originally absent), preserving wbjin ownership, then run /usr/lib/postgresql/14/bin/pg_ctl -D /users/wbjin/pgdata -l /users/wbjin/postgres.log -w restart."
+}

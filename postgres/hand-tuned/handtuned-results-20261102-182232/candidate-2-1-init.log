@@ -1,0 +1,17 @@
+dropping old tables...
+creating tables...
+generating data (client-side)...
+100000 of 1000000 tuples (10%) done (elapsed 0.25 s, remaining 2.29 s)
+200000 of 1000000 tuples (20%) done (elapsed 0.68 s, remaining 2.73 s)
+300000 of 1000000 tuples (30%) done (elapsed 0.97 s, remaining 2.26 s)
+400000 of 1000000 tuples (40%) done (elapsed 1.36 s, remaining 2.04 s)
+500000 of 1000000 tuples (50%) done (elapsed 1.78 s, remaining 1.78 s)
+600000 of 1000000 tuples (60%) done (elapsed 2.06 s, remaining 1.37 s)
+700000 of 1000000 tuples (70%) done (elapsed 2.45 s, remaining 1.05 s)
+800000 of 1000000 tuples (80%) done (elapsed 2.73 s, remaining 0.68 s)
+900000 of 1000000 tuples (90%) done (elapsed 3.15 s, remaining 0.35 s)
+1000000 of 1000000 tuples (100%) done (elapsed 3.57 s, remaining 0.00 s)
+vacuuming...
+creating primary keys...
+done in 7.24 s (drop tables 0.11 s, create tables 0.02 s, client-side generate 3.68 s, vacuum 0.84 s, primary keys 2.60 s).
+

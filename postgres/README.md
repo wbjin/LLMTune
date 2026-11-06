@@ -1,9 +1,11 @@
-# 592 Project
+# Postgres Tuning
 
 ## Install postgres with
 ```bash
 bash scripts/install_postgres.sh
 ```
+
+For a PostgreSQL server-side perf comparison of the default and OpenTuner configurations, see [Profiling with perf](PERF.md).
 
 ## Benchmarking
 ```bash

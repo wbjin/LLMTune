@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Test the node0 PostgreSQL 14 tuning strategy; requires root."""
+"""Test the node0 PostgreSQL 14 instance owned by wbjin."""
 
 import argparse
 import csv
@@ -22,19 +22,37 @@ def positive(value):
 
 
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument("--duration", type=positive, default=600)
-parser.add_argument("--warmup", type=positive, default=120)
-parser.add_argument("--repeats", type=positive, default=3)
-parser.add_argument("--scale", type=positive, default=100)
+parser.add_argument(
+    "--fast", action="store_true",
+    help="Use a smaller dataset and shorter runs for quick experiments.",
+)
+parser.add_argument("--duration", type=positive, default=None)
+parser.add_argument("--warmup", type=positive, default=None)
+parser.add_argument("--repeats", type=positive, default=None)
+parser.add_argument("--scale", type=positive, default=None)
+parser.add_argument("--validation-duration", type=positive, default=None)
 args = parser.parse_args()
 
-if os.geteuid() != 0:
-    parser.error("run with sudo python3")
+defaults = (
+    dict(duration=30, warmup=5, repeats=1, scale=10, validation_duration=60)
+    if args.fast else
+    dict(duration=600, warmup=120, repeats=3, scale=100,
+         validation_duration=max(1800, args.duration or 600))
+)
+for name, default in defaults.items():
+    if getattr(args, name) is None:
+        setattr(args, name, default)
+
+if os.geteuid() == 0:
+    parser.error("run as wbjin, without sudo")
 
 # Avoid inherited connection settings changing the target or workload.
 ENV = {k: v for k, v in os.environ.items() if not k.startswith("PG")}
 ENV["LC_ALL"] = "C"
-CONNECTION = ["-h", "/var/run/postgresql", "-p", "5432"]
+CONNECTION = ["-h", "/users/wbjin/pgsocket", "-p", "5432", "-U", "wbjin"]
+PG_CTL = "/usr/lib/postgresql/14/bin/pg_ctl"
+PG_DATA = "/users/wbjin/pgdata"
+PG_LOG = "/users/wbjin/postgres.log"
 DB = "pgbench_handtuned"
 KNOBS = ("shared_buffers", "max_wal_size", "wal_compression")
 out = Path.cwd() / time.strftime("handtuned-results-%Y%m%d-%H%M%S")
@@ -42,8 +60,7 @@ out.mkdir(mode=0o700)
 
 
 def run(command, postgres=False):
-    if postgres:
-        command = ["runuser", "-u", "postgres", "--", *command]
+    # Database commands now run as the current OS user.
     return subprocess.check_output(
         command, text=True, stderr=subprocess.STDOUT, env=ENV, cwd="/tmp"
     )
@@ -62,7 +79,7 @@ def save(name, text):
 
 
 def restart():
-    run(["pg_ctlcluster", "14", "main", "restart"])
+    run([PG_CTL, "-D", PG_DATA, "-l", PG_LOG, "-m", "fast", "-w", "restart"])
     run(["pg_isready", *CONNECTION], postgres=True)
 
 
@@ -86,8 +103,8 @@ def snapshot():
 initial = settings()
 if not initial["server_version"].startswith("14."):
     raise RuntimeError("Expected PostgreSQL 14")
-if initial["data_directory"] != "/var/lib/postgresql/14/main":
-    raise RuntimeError("Port 5432 is not the expected 14/main cluster")
+if initial["data_directory"] != PG_DATA:
+    raise RuntimeError("Connected to an unexpected PostgreSQL instance")
 for key in ("fsync", "synchronous_commit", "full_page_writes", "autovacuum"):
     if initial[key] != "on":
         raise RuntimeError(f"Expected {key}=on; found {initial[key]}")
@@ -101,6 +118,7 @@ for location in (data, wal):
         raise RuntimeError(f"Need at least 20 GiB free on {location}")
 
 save("initial-settings.json", json.dumps(initial, indent=2))
+save("arguments.json", json.dumps(vars(args), indent=2))
 save("hardware.txt", run(["lscpu"]) + run(["free", "-h"])
      + run(["df", "-h", str(data), str(wal)]))
 auto = data / "postgresql.auto.conf"
@@ -112,7 +130,7 @@ save("recovery.txt",
      f"Original auto.conf existed: {had_auto}\n"
      f"If interrupted by SIGKILL or power loss, restore {auto} from "
      f"{backup} (or remove auto.conf if originally absent), then run:\n"
-     "sudo pg_ctlcluster 14 main restart\n"
+     f"{PG_CTL} -D {PG_DATA} -l {PG_LOG} -w restart\n"
      "Do not edit PostgreSQL configuration concurrently with this test.")
 
 
@@ -189,7 +207,7 @@ try:
         if accepted:
             best, best_result = candidate, result
         save("decisions.json", json.dumps(decisions, indent=2))
-    validation_seconds = max(1800, args.duration)
+    validation_seconds = args.validation_duration
     control = benchmark("baseline-validation", baseline, validation_seconds)
     final = benchmark("selected-validation", best, validation_seconds)
     save("summary.json", json.dumps({

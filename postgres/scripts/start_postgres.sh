@@ -1,8 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Restart also starts the cluster if it is currently stopped.
-sudo pg_ctlcluster --mode fast 14 main restart
-sudo -u postgres pg_isready -h /var/run/postgresql -p 5432
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/postgres_env.sh"
 
-echo "PostgreSQL 14/main is running on port 5432."
+if [[ ! -f "$PG_DATA/PG_VERSION" ]]; then
+  echo "Run install_postgres.sh to initialize the instance first." >&2
+  exit 1
+fi
+
+mkdir -p "$PG_SOCKET"
+chmod 700 "$PG_SOCKET"
+if "$PG_BIN/pg_ctl" -D "$PG_DATA" status >/dev/null 2>&1; then
+  "$PG_BIN/pg_ctl" -D "$PG_DATA" -l "$PG_LOG" -m fast -w restart
+else
+  "$PG_BIN/pg_ctl" -D "$PG_DATA" -l "$PG_LOG" -w start
+fi
+"$PG_BIN/pg_isready" "${CONNECTION[@]}"
+"$PG_BIN/psql" "${CONNECTION[@]}" -X -v ON_ERROR_STOP=1 -d postgres \
+  -c "SELECT current_user, current_setting('data_directory');"
+
+echo "User-owned PostgreSQL is running on port 5432."

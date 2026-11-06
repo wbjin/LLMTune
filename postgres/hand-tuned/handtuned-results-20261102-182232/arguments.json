@@ -1,0 +1,8 @@
+{
+  "fast": true,
+  "duration": 30,
+  "warmup": 5,
+  "repeats": 1,
+  "scale": 10,
+  "validation_duration": 60
+}

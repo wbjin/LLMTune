@@ -18,7 +18,19 @@ SPACE = {
     "max_wal_size": ["1GB", "2GB", "4GB", "8GB"],
     "wal_compression": ["off", "on"],
 }
-CONNECTION = ["-h", "/var/run/postgresql", "-p", "5432"]
+EXPANDED_SPACE = {
+    **SPACE,
+    "shared_buffers": ["128MB", "256MB", "512MB", "1GB", "2GB", "4GB", "8GB", "16GB"],
+    # commit_delay is in microseconds; commit_siblings is concurrent transactions.
+    "commit_delay": ["0", "10", "50", "100"],
+    "commit_siblings": ["1", "5", "10"],
+}
+SEARCH_SPACES = {"original": SPACE, "expanded": EXPANDED_SPACE}
+
+CONNECTION = ["-h", "/users/wbjin/pgsocket", "-p", "5432", "-U", "wbjin"]
+PG_CTL = "/usr/lib/postgresql/14/bin/pg_ctl"
+PG_DATA = Path("/users/wbjin/pgdata")
+PG_LOG = "/users/wbjin/postgres.log"
 DATABASE = "pgbench_opentuner"
 
 
@@ -30,10 +42,15 @@ def positive(value):
 
 
 class PostgresBenchmark:
-    def __init__(self, output, duration=600, warmup=120, repeats=3, scale=100):
+    database = DATABASE
+
+    def __init__(self, output, duration=600, warmup=120, repeats=3, scale=100,
+                 reuse_dataset=False, search_space="original"):
         self.output = Path(output).resolve()
         self.duration, self.warmup = duration, warmup
         self.repeats, self.scale = repeats, scale
+        self.reuse_dataset = reuse_dataset
+        self.space = SEARCH_SPACES[search_space]
         self.sequence = 0
         self.environment = {
             k: v for k, v in os.environ.items() if not k.startswith("PG")
@@ -44,8 +61,7 @@ class PostgresBenchmark:
         path.write_text(json.dumps(value, indent=2) + "\n")
 
     def command(self, argv, postgres=False, timeout=120):
-        if postgres:
-            argv = ["runuser", "-u", "postgres", "--", *argv]
+        # Database commands run as the current OS user.
         self.sequence += 1
         log = self.output / f"command-{self.sequence:05d}.log"
         with log.open("w") as handle:
@@ -82,7 +98,10 @@ class PostgresBenchmark:
         ))
 
     def restart(self):
-        self.command(["pg_ctlcluster", "14", "main", "restart"], timeout=180)
+        self.command(
+            [PG_CTL, "-D", str(PG_DATA), "-l", PG_LOG,
+             "-m", "fast", "-w", "restart"], timeout=180,
+        )
         self.command(["pg_isready", *CONNECTION], postgres=True)
 
     def check_space(self):
@@ -92,16 +111,18 @@ class PostgresBenchmark:
 
     @contextmanager
     def session(self):
-        if os.geteuid() != 0:
-            raise RuntimeError("Run with sudo and the project's Python interpreter")
-        with open("/run/lock/postgres-14-main-tuning.lock", "a") as lock:
+        if os.geteuid() == 0:
+            raise RuntimeError("Run as wbjin, without sudo")
+        if PG_DATA.stat().st_uid != os.geteuid():
+            raise RuntimeError("Run as the owner of the PostgreSQL data directory")
+        with open(PG_DATA / "tuning.lock", "a") as lock:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             self.output.mkdir(mode=0o700, parents=True, exist_ok=False)
             initial = self.settings()
             self.data = Path(initial["data_directory"])
             if (not initial["server_version"].startswith("14.")
-                    or self.data != Path("/var/lib/postgresql/14/main")):
-                raise RuntimeError("Expected PostgreSQL 14/main on port 5432")
+                    or self.data != PG_DATA):
+                raise RuntimeError("Expected the wbjin-owned PostgreSQL 14 instance")
             for name in ("fsync", "synchronous_commit", "full_page_writes",
                          "autovacuum"):
                 if initial[name] != "on":
@@ -125,27 +146,34 @@ class PostgresBenchmark:
                 "originally_existed": original_stat is not None,
                 "instructions": (
                     "If terminated without cleanup, restore the original file "
-                    "(or remove it if originally absent), preserving postgres "
-                    "ownership, then run sudo pg_ctlcluster 14 main restart."
+                    "(or remove it if originally absent), preserving wbjin "
+                    f"ownership, then run {PG_CTL} -D {PG_DATA} "
+                    f"-l {PG_LOG} -w restart."
                 ),
             })
             try:
                 if self.sql(
-                    f"SELECT 1 FROM pg_database WHERE datname = '{DATABASE}'"
+                    f"SELECT 1 FROM pg_database WHERE datname = '{self.database}'"
                 ) != "1":
-                    self.command(["createdb", *CONNECTION, DATABASE], True)
+                    self.command(["createdb", *CONNECTION, self.database], True)
+                if self.reuse_dataset:
+                    print("Initializing dataset once for fast search...", flush=True)
+                    self.command(
+                        ["pgbench", *CONNECTION, "-i", "-s",
+                         str(self.scale), self.database],
+                        True, timeout=1800,
+                    )
                 yield self
             finally:
                 if original_stat:
                     temporary = auto.with_name("postgresql.auto.conf.tuning-restore")
                     shutil.copy2(backup, temporary)
-                    os.chown(temporary, original_stat.st_uid, original_stat.st_gid)
                     os.replace(temporary, auto)
                 else:
                     auto.unlink(missing_ok=True)
                 self.restart()
                 restored = self.settings()
-                for name in SPACE:
+                for name in self.space:
                     if restored[name] != initial[name]:
                         raise RuntimeError(f"Failed to restore {name}")
                 print("Original PostgreSQL settings restored.", flush=True)
@@ -156,13 +184,17 @@ class PostgresBenchmark:
               'bgwriter', (SELECT row_to_json(s) FROM pg_stat_bgwriter s),
               'wal', (SELECT row_to_json(s) FROM pg_stat_wal s),
               'database', (SELECT row_to_json(s) FROM pg_stat_database s
-                           WHERE datname = '{DATABASE}'));
+                           WHERE datname = '{self.database}'));
         """))
 
+    def measure(self, argv, timeout, trial, repetition):
+        """Measured phase only; a profiler can wrap this without changing setup or warm-up."""
+        return self.command(argv, True, timeout=timeout)
+
     def evaluate(self, config, label):
-        if set(config) != set(SPACE):
+        if set(config) != set(self.space):
             raise ValueError("Unexpected configuration keys")
-        for name, choices in SPACE.items():
+        for name, choices in self.space.items():
             if config[name] not in choices:
                 raise ValueError(f"Unsupported value for {name}")
         trial = self.output / label
@@ -183,18 +215,20 @@ class PostgresBenchmark:
                        "-M", "simple", "-P", "5"]
             for repetition in range(1, self.repeats + 1):
                 self.check_space()
+                if not self.reuse_dataset:
+                    self.command(
+                        ["pgbench", *CONNECTION, "-i", "-s",
+                         str(self.scale), self.database],
+                        True, timeout=1800,
+                    )
                 self.command(
-                    ["pgbench", *CONNECTION, "-i", "-s", str(self.scale), DATABASE],
-                    True, timeout=1800,
-                )
-                self.command(
-                    [*command, "-T", str(self.warmup), DATABASE],
+                    [*command, "-T", str(self.warmup), self.database],
                     True, timeout=self.warmup + 120,
                 )
                 before = self.snapshot()
-                output = self.command(
-                    [*command, "-T", str(self.duration), DATABASE],
-                    True, timeout=self.duration + 120,
+                output = self.measure(
+                    [*command, "-T", str(self.duration), self.database],
+                    self.duration + 120, trial, repetition,
                 )
                 tps = re.search(r"^tps = ([\d.]+)", output, re.M)
                 latency = re.search(r"^latency average = ([\d.]+)", output, re.M)

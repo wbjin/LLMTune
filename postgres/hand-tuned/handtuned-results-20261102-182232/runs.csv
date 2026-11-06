@@ -1,0 +1,10 @@
+configuration,repetition,tps,latency_ms
+baseline,1,1080.923951,14.761
+candidate-1,1,1599.556974,9.966
+candidate-2,1,1584.646242,10.058
+candidate-3,1,1601.783696,9.95
+candidate-4,1,1609.436608,9.902
+candidate-5,1,1594.414751,9.995
+candidate-6,1,1602.886181,9.944
+baseline-validation,1,1056.761885,15.105
+selected-validation,1,1588.167513,10.039

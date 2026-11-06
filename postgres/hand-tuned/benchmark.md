@@ -1,4 +1,29 @@
 # Benchmark Result
+
+## Default PostgreSQL 14 baseline on node0 (2026-11-02, scale 10)
+
+The default configuration achieved **1,080.92 TPS** on the pgbench read/write
+workload with 16 clients, 4 threads, a 5-second warm-up, and a 30-second
+measurement. A separate 60-second baseline validation measured **1,056.76 TPS**.
+
+| Setting | Recorded default |
+|---|---:|
+| `shared_buffers` | `128MB` |
+| `max_wal_size` | `1GB` |
+| `wal_compression` | `off` |
+| `commit_delay` | `0` µs |
+| `commit_siblings` | `5` |
+
+The [best OpenTuner trial](../opentuner/README.md) reached **1,607.00 TPS**
+under the same 30-second protocol, about 49% above the default. Each score is
+one measurement from a separate tuning session, so the difference is not an
+independently validated speedup.
+
+Sources: [baseline settings](handtuned-results-20261102-182232/baseline-settings.json)
+and [measured runs](handtuned-results-20261102-182232/runs.csv).
+
+## Earlier hand-tuning run (2026-10-22, scale 100)
+
 ```bash
 wbjin@node0:~/proj/hand-tuned$ sudo /users/wbjin/.local/bin/uv run test_strategy.py
 Testing baseline: {'shared_buffers': '128MB', 'max_wal_size': '1GB', 'wal_compression': 'off'}

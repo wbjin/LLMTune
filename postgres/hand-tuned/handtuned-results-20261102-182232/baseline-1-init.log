@@ -1,0 +1,21 @@
+dropping old tables...
+NOTICE:  table "pgbench_accounts" does not exist, skipping
+NOTICE:  table "pgbench_branches" does not exist, skipping
+NOTICE:  table "pgbench_history" does not exist, skipping
+NOTICE:  table "pgbench_tellers" does not exist, skipping
+creating tables...
+generating data (client-side)...
+100000 of 1000000 tuples (10%) done (elapsed 0.26 s, remaining 2.34 s)
+200000 of 1000000 tuples (20%) done (elapsed 1.06 s, remaining 4.24 s)
+300000 of 1000000 tuples (30%) done (elapsed 1.91 s, remaining 4.45 s)
+400000 of 1000000 tuples (40%) done (elapsed 2.23 s, remaining 3.34 s)
+500000 of 1000000 tuples (50%) done (elapsed 3.03 s, remaining 3.03 s)
+600000 of 1000000 tuples (60%) done (elapsed 3.44 s, remaining 2.30 s)
+700000 of 1000000 tuples (70%) done (elapsed 4.19 s, remaining 1.80 s)
+800000 of 1000000 tuples (80%) done (elapsed 5.00 s, remaining 1.25 s)
+900000 of 1000000 tuples (90%) done (elapsed 5.42 s, remaining 0.60 s)
+1000000 of 1000000 tuples (100%) done (elapsed 6.19 s, remaining 0.00 s)
+vacuuming...
+creating primary keys...
+done in 9.16 s (drop tables 0.00 s, create tables 0.02 s, client-side generate 6.27 s, vacuum 0.82 s, primary keys 2.06 s).
+
